@@ -179,10 +179,7 @@ RenderingEngine::RenderingEngine(MyEventReceiver *receiver)
 
 	// bpp, fsaa, vsync
 	bool vsync = g_settings->getBool("vsync");
-	// Don't enable MSAA in OpenGL context creation if post-processing is enabled,
-	// the post-processing pipeline handles it.
-	bool enable_fsaa = g_settings->get("antialiasing") == "fsaa" &&
-			!g_settings->getBool("enable_post_processing");
+	bool enable_fsaa = g_settings->get("antialiasing") == "fsaa";
 	u16 fsaa = enable_fsaa ? MYMAX(2, g_settings->getU16("fsaa")) : 0;
 
 	// Determine driver

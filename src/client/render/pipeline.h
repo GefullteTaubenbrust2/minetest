@@ -117,7 +117,7 @@ public:
 	 * @param name unique name of the texture
 	 * @param format color format
 	 */
-	void setTexture(u8 index, core::dimension2du size, const std::string& name, video::ECOLOR_FORMAT format, bool clear = false, u8 msaa = 0);
+	void setTexture(u8 index, core::dimension2du size, const std::string& name, video::ECOLOR_FORMAT format, bool clear = false);
 
 	/**
 	 * Configure relative-size texture for the specific index
@@ -127,12 +127,13 @@ public:
 	 * @param name unique name of the texture
 	 * @param format color format
 	 */
-	void setTexture(u8 index, v2f scale_factor, const std::string& name, video::ECOLOR_FORMAT format, bool clear = false, u8 msaa = 0);
+	void setTexture(u8 index, v2f scale_factor, const std::string& name, video::ECOLOR_FORMAT format, bool clear = false);
 
 	virtual u8 getTextureCount() override { return m_textures.size(); }
 	virtual video::ITexture *getTexture(u8 index) override;
 	virtual void reset(PipelineContext &context) override;
 	void swapTextures(u8 texture_a, u8 texture_b);
+	void setTextureImage(u8 id, video::IImage* image);
 private:
 	static const u8 NO_DEPTH_TEXTURE = 255;
 
@@ -146,7 +147,6 @@ private:
 		core::dimension2du size;
 		std::string name;
 		video::ECOLOR_FORMAT format;
-		u8 msaa;
 	};
 
 	/**
@@ -175,9 +175,6 @@ public:
 	TextureBufferOutput(TextureBuffer *buffer, const std::vector<u8> &texture_map, u8 depth_stencil);
 	virtual ~TextureBufferOutput() override;
 	void activate(PipelineContext &context) override;
-
-	video::IRenderTarget *getIrrRenderTarget(PipelineContext &context);
-
 private:
 	static const u8 NO_DEPTH_TEXTURE = 255;
 

@@ -302,7 +302,6 @@ void set_default_settings()
 	settings->setDefault("arm_inertia", "true");
 	settings->setDefault("show_nametag_backgrounds", "true");
 	settings->setDefault("show_block_bounds_radius_near", "4");
-	settings->setDefault("transparency_sorting_group_by_buffers", "true");
 	settings->setDefault("transparency_sorting_distance", "16");
 
 	settings->setDefault("enable_minimap", "true");
@@ -326,14 +325,20 @@ void set_default_settings()
 	settings->setDefault("enable_waving_plants", "false");
 	settings->setDefault("exposure_compensation", "0.0");
 	settings->setDefault("enable_auto_exposure", "false");
+	settings->setDefault("enable_color_grading", "false");
+	settings->setDefault("enable_vignette", "false");
+	settings->setDefault("secondstage_gamma", "1.6");
 	settings->setDefault("debanding", "true");
 	settings->setDefault("antialiasing", "none");
 	settings->setDefault("enable_bloom", "false");
 	settings->setDefault("enable_bloom_debug", "false");
 	settings->setDefault("enable_volumetric_lighting", "false");
+	settings->setDefault("enable_volumetric_depth_attenuation", "false");
+	settings->setDefault("enable_bumpmaps", "false");
 	settings->setDefault("enable_water_reflections", "false");
 	settings->setDefault("enable_translucent_foliage", "false");
 	settings->setDefault("enable_node_specular", "false");
+	settings->setDefault("enable_tinted_fog", "false");
 
 	// Effects Shadows
 	settings->setDefault("enable_dynamic_shadows", "false");
@@ -347,6 +352,7 @@ void set_default_settings()
 	settings->setDefault("shadow_update_frames", "8");
 	settings->setDefault("shadow_soft_radius", "5.0");
 	settings->setDefault("shadow_sky_body_orbit_tilt", "0.0");
+	settings->setDefault("enable_sun_tint", "false");
 
 	// Input
 	settings->setDefault("invert_mouse", "false");
@@ -543,7 +549,6 @@ void set_default_settings()
 	settings->setDefault("keymap_sneak", "KEY_SHIFT");
 #endif
 
-	settings->setDefault("touch_layout", "");
 	settings->setDefault("touchscreen_sensitivity", "0.2");
 	settings->setDefault("touchscreen_threshold", "20");
 	settings->setDefault("touch_long_tap_delay", "400");

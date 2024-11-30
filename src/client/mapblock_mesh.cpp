@@ -3,7 +3,6 @@
 // Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
 
 #include "mapblock_mesh.h"
-#include "CMeshBuffer.h"
 #include "client.h"
 #include "mapblock.h"
 #include "map.h"
@@ -26,9 +25,10 @@
 	MeshMakeData
 */
 
-MeshMakeData::MeshMakeData(const NodeDefManager *ndef, u16 side_length):
+MeshMakeData::MeshMakeData(const NodeDefManager *ndef, u16 side_length, bool use_tangent_vertices):
 	side_length(side_length),
-	nodedef(ndef)
+	nodedef(ndef),
+	m_use_tangent_vertices(use_tangent_vertices)
 {}
 
 void MeshMakeData::fillBlockDataBegin(const v3s16 &blockpos)
@@ -602,6 +602,8 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data, v3s16 camera_offs
 	for (auto &m : m_mesh)
 		m = make_irr<scene::SMesh>();
 
+	m_use_tangent_vertices = data->m_use_tangent_vertices;
+
 	auto mesh_grid = client->getMeshGrid();
 	v3s16 bp = data->m_blockpos;
 	// Only generate minimap mapblocks at even coordinates.
@@ -710,27 +712,44 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data, v3s16 camera_offs
 				p.layer.applyMaterialOptionsWithShaders(material);
 			}
 
-			scene::SMeshBuffer *buf = new scene::SMeshBuffer();
-			buf->Material = material;
-			if (p.layer.isTransparent()) {
-				buf->append(&p.vertices[0], p.vertices.size(), nullptr, 0);
-
-				MeshTriangle t;
-				t.buffer = buf;
-				m_transparent_triangles.reserve(p.indices.size() / 3);
-				for (u32 i = 0; i < p.indices.size(); i += 3) {
-					t.p1 = p.indices[i];
-					t.p2 = p.indices[i + 1];
-					t.p3 = p.indices[i + 2];
-					t.updateAttributes();
-					m_transparent_triangles.push_back(t);
-				}
-			} else {
-				buf->append(&p.vertices[0], p.vertices.size(),
+			if (m_use_tangent_vertices && !p.layer.isTransparent()) {
+				scene::SMeshBufferTangents* buf = new scene::SMeshBufferTangents();
+				buf->Material = material;
+				std::vector<video::S3DVertexTangents> vertices;
+				vertices.reserve(p.vertices.size());
+				for (video::S3DVertex &v : p.vertices)
+					vertices.emplace_back(v.Pos, v.Normal, v.Color, v.TCoords);
+				buf->append(&vertices[0], vertices.size(),
 					&p.indices[0], p.indices.size());
+				buf->recalculateBoundingBox();
+				scene::IMeshManipulator* meshmanip =
+					client->getSceneManager()->getMeshManipulator();
+				meshmanip->recalculateTangents(buf);
+				mesh->addMeshBuffer(buf);
+				buf->drop();
+			} else {
+				scene::SMeshBuffer *buf = new scene::SMeshBuffer();
+				buf->Material = material;
+				if (p.layer.isTransparent()) {
+					buf->append(&p.vertices[0], p.vertices.size(), nullptr, 0);
+
+					MeshTriangle t;
+					t.buffer = buf;
+					m_transparent_triangles.reserve(p.indices.size() / 3);
+					for (u32 i = 0; i < p.indices.size(); i += 3) {
+						t.p1 = p.indices[i];
+						t.p2 = p.indices[i + 1];
+						t.p3 = p.indices[i + 2];
+						t.updateAttributes();
+						m_transparent_triangles.push_back(t);
+					}
+				} else {
+					buf->append(&p.vertices[0], p.vertices.size(),
+						&p.indices[0], p.indices.size());
+				}
+				mesh->addMeshBuffer(buf);
+				buf->drop();
 			}
-			mesh->addMeshBuffer(buf);
-			buf->drop();
 		}
 
 		if (mesh) {
@@ -819,8 +838,7 @@ bool MapBlockMesh::animate(bool faraway, float time, int crack,
 	return true;
 }
 
-void MapBlockMesh::updateTransparentBuffers(v3f camera_pos, v3s16 block_pos,
-		bool group_by_buffers)
+void MapBlockMesh::updateTransparentBuffers(v3f camera_pos, v3s16 block_pos)
 {
 	// nothing to do if the entire block is opaque
 	if (m_transparent_triangles.empty())
@@ -836,56 +854,24 @@ void MapBlockMesh::updateTransparentBuffers(v3f camera_pos, v3s16 block_pos,
 	m_transparent_buffers_consolidated = false;
 	m_transparent_buffers.clear();
 
-	std::vector<std::pair<scene::SMeshBuffer *, std::vector<u16>>> ordered_strains;
-	std::unordered_map<scene::SMeshBuffer *, size_t> strain_idxs;
-
-	if (group_by_buffers) {
-		// find (reversed) order for strains, by iterating front-to-back
-		// (if a buffer A has a triangle nearer than all triangles of another
-		// buffer B, A should be drawn in front of (=after) B)
-		scene::SMeshBuffer *current_buffer = nullptr;
-		for (auto it = triangle_refs.rbegin(); it != triangle_refs.rend(); ++it) {
-			const auto &t = m_transparent_triangles[*it];
-			if (current_buffer == t.buffer)
-				continue;
-			current_buffer = t.buffer;
-			auto [_it2, is_new] =
-				strain_idxs.emplace(current_buffer, ordered_strains.size());
-			if (is_new)
-				ordered_strains.emplace_back(current_buffer, std::vector<u16>{});
-		}
-	}
-
-	// find order for triangles, by iterating back-to-front
 	scene::SMeshBuffer *current_buffer = nullptr;
-	std::vector<u16> *current_strain = nullptr;
+	std::vector<u16> current_strain;
 	for (auto i : triangle_refs) {
 		const auto &t = m_transparent_triangles[i];
 		if (current_buffer != t.buffer) {
-			current_buffer = t.buffer;
-			if (group_by_buffers) {
-				auto it = strain_idxs.find(current_buffer);
-				assert(it != strain_idxs.end());
-				current_strain = &ordered_strains[it->second].second;
-			} else {
-				ordered_strains.emplace_back(current_buffer, std::vector<u16>{});
-				current_strain = &ordered_strains.back().second;
+			if (current_buffer) {
+				m_transparent_buffers.emplace_back(current_buffer, std::move(current_strain));
+				current_strain.clear();
 			}
+			current_buffer = t.buffer;
 		}
-		current_strain->push_back(t.p1);
-		current_strain->push_back(t.p2);
-		current_strain->push_back(t.p3);
+		current_strain.push_back(t.p1);
+		current_strain.push_back(t.p2);
+		current_strain.push_back(t.p3);
 	}
 
-	m_transparent_buffers.reserve(ordered_strains.size());
-	if (group_by_buffers) {
-		// the order was reversed
-		for (auto it = ordered_strains.rbegin(); it != ordered_strains.rend(); ++it)
-			m_transparent_buffers.emplace_back(it->first, std::move(it->second));
-	} else {
-		for (auto it = ordered_strains.begin(); it != ordered_strains.end(); ++it)
-			m_transparent_buffers.emplace_back(it->first, std::move(it->second));
-	}
+	if (!current_strain.empty())
+		m_transparent_buffers.emplace_back(current_buffer, std::move(current_strain));
 }
 
 void MapBlockMesh::consolidateTransparentBuffers()

@@ -13,6 +13,11 @@
 #include "rect.h"
 #include "IrrCompileConfig.h" // for IRRLICHT_API
 
+// enable this to keep track of changes to the matrix
+// and make simpler identity check for seldom changing matrices
+// otherwise identity check will always compare the elements
+// #define USE_MATRIX_TEST
+
 namespace irr
 {
 namespace core
@@ -76,6 +81,9 @@ public:
 	//! Simple operator for directly accessing every element of the matrix.
 	T &operator()(const s32 row, const s32 col)
 	{
+#if defined(USE_MATRIX_TEST)
+		definitelyIdentityMatrix = false;
+#endif
 		return M[row * 4 + col];
 	}
 
@@ -85,6 +93,9 @@ public:
 	//! Simple operator for linearly accessing every element of the matrix.
 	T &operator[](u32 index)
 	{
+#if defined(USE_MATRIX_TEST)
+		definitelyIdentityMatrix = false;
+#endif
 		return M[index];
 	}
 
@@ -101,12 +112,19 @@ public:
 	const T *pointer() const { return M; }
 	T *pointer()
 	{
+#if defined(USE_MATRIX_TEST)
+		definitelyIdentityMatrix = false;
+#endif
 		return M;
 	}
 
 	//! Returns true if other matrix is equal to this matrix.
 	constexpr bool operator==(const CMatrix4<T> &other) const
 	{
+#if defined(USE_MATRIX_TEST)
+		if (definitelyIdentityMatrix && other.definitelyIdentityMatrix)
+			return true;
+#endif
 		for (s32 i = 0; i < 16; ++i)
 			if (M[i] != other.M[i])
 				return false;
@@ -425,17 +443,31 @@ public:
 	//! Sets all matrix data members at once
 	CMatrix4<T> &setM(const T *data);
 
+	//! Sets if the matrix is definitely identity matrix
+	void setDefinitelyIdentityMatrix(bool isDefinitelyIdentityMatrix);
+
+	//! Gets if the matrix is definitely identity matrix
+	bool getDefinitelyIdentityMatrix() const;
+
 	//! Compare two matrices using the equal method
 	bool equals(const core::CMatrix4<T> &other, const T tolerance = (T)ROUNDING_ERROR_f64) const;
 
 private:
 	//! Matrix data, stored in row-major order
 	T M[16];
+#if defined(USE_MATRIX_TEST)
+	//! Flag is this matrix is identity matrix
+	mutable u32 definitelyIdentityMatrix;
+#endif
 };
 
 // Default constructor
 template <class T>
 inline CMatrix4<T>::CMatrix4(eConstructor constructor)
+#if defined(USE_MATRIX_TEST)
+		:
+		definitelyIdentityMatrix(BIT_UNTESTED)
+#endif
 {
 	switch (constructor) {
 	case EM4CONST_NOTHING:
@@ -452,6 +484,10 @@ inline CMatrix4<T>::CMatrix4(eConstructor constructor)
 // Copy constructor
 template <class T>
 inline CMatrix4<T>::CMatrix4(const CMatrix4<T> &other, eConstructor constructor)
+#if defined(USE_MATRIX_TEST)
+		:
+		definitelyIdentityMatrix(BIT_UNTESTED)
+#endif
 {
 	switch (constructor) {
 	case EM4CONST_IDENTITY:
@@ -677,6 +713,9 @@ inline CMatrix4<T> &CMatrix4<T>::setbyproduct_nocheck(const CMatrix4<T> &other_a
 	M[13] = m1[1] * m2[12] + m1[5] * m2[13] + m1[9] * m2[14] + m1[13] * m2[15];
 	M[14] = m1[2] * m2[12] + m1[6] * m2[13] + m1[10] * m2[14] + m1[14] * m2[15];
 	M[15] = m1[3] * m2[12] + m1[7] * m2[13] + m1[11] * m2[14] + m1[15] * m2[15];
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -748,6 +787,9 @@ inline CMatrix4<T> &CMatrix4<T>::setTranslation(const vector3d<T> &translation)
 	M[12] = translation.X;
 	M[13] = translation.Y;
 	M[14] = translation.Z;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -757,6 +799,9 @@ inline CMatrix4<T> &CMatrix4<T>::setInverseTranslation(const vector3d<T> &transl
 	M[12] = -translation.X;
 	M[13] = -translation.Y;
 	M[14] = -translation.Z;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -766,6 +811,9 @@ inline CMatrix4<T> &CMatrix4<T>::setScale(const vector3d<T> &scale)
 	M[0] = scale.X;
 	M[5] = scale.Y;
 	M[10] = scale.Z;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -808,27 +856,30 @@ inline CMatrix4<T> &CMatrix4<T>::setInverseRotationDegrees(const vector3d<T> &ro
 template <class T>
 inline CMatrix4<T> &CMatrix4<T>::setRotationRadians(const vector3d<T> &rotation)
 {
-	const f64 cPitch = cos(rotation.X);
-	const f64 sPitch = sin(rotation.X);
-	const f64 cYaw = cos(rotation.Y);
-	const f64 sYaw = sin(rotation.Y);
-	const f64 cRoll = cos(rotation.Z);
-	const f64 sRoll = sin(rotation.Z);
+	const f64 cr = cos(rotation.X);
+	const f64 sr = sin(rotation.X);
+	const f64 cp = cos(rotation.Y);
+	const f64 sp = sin(rotation.Y);
+	const f64 cy = cos(rotation.Z);
+	const f64 sy = sin(rotation.Z);
 
-	M[0] = (T)(cYaw * cRoll);
-	M[1] = (T)(cYaw * sRoll);
-	M[2] = (T)(-sYaw);
+	M[0] = (T)(cp * cy);
+	M[1] = (T)(cp * sy);
+	M[2] = (T)(-sp);
 
-	const f64 sPitch_sYaw = sPitch * sYaw;
-	const f64 cPitch_sYaw = cPitch * sYaw;
+	const f64 srsp = sr * sp;
+	const f64 crsp = cr * sp;
 
-	M[4] = (T)(sPitch_sYaw * cRoll - cPitch * sRoll);
-	M[5] = (T)(sPitch_sYaw * sRoll + cPitch * cRoll);
-	M[6] = (T)(sPitch * cYaw);
+	M[4] = (T)(srsp * cy - cr * sy);
+	M[5] = (T)(srsp * sy + cr * cy);
+	M[6] = (T)(sr * cp);
 
-	M[8] = (T)(cPitch_sYaw * cRoll + sPitch * sRoll);
-	M[9] = (T)(cPitch_sYaw * sRoll - sPitch * cRoll);
-	M[10] = (T)(cPitch * cYaw);
+	M[8] = (T)(crsp * cy + sr * sy);
+	M[9] = (T)(crsp * sy - sr * cy);
+	M[10] = (T)(cr * cp);
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -909,27 +960,30 @@ inline core::vector3d<T> CMatrix4<T>::getRotationDegrees() const
 template <class T>
 inline CMatrix4<T> &CMatrix4<T>::setInverseRotationRadians(const vector3d<T> &rotation)
 {
-	f64 cPitch = cos(rotation.X);
-	f64 sPitch = sin(rotation.X);
-	f64 cYaw = cos(rotation.Y);
-	f64 sYaw = sin(rotation.Y);
-	f64 cRoll = cos(rotation.Z);
-	f64 sRoll = sin(rotation.Z);
+	f64 cr = cos(rotation.X);
+	f64 sr = sin(rotation.X);
+	f64 cp = cos(rotation.Y);
+	f64 sp = sin(rotation.Y);
+	f64 cy = cos(rotation.Z);
+	f64 sy = sin(rotation.Z);
 
-	M[0] = (T)(cYaw * cRoll);
-	M[4] = (T)(cYaw * sRoll);
-	M[8] = (T)(-sYaw);
+	M[0] = (T)(cp * cy);
+	M[4] = (T)(cp * sy);
+	M[8] = (T)(-sp);
 
-	f64 sPitch_sYaw = sPitch * sYaw;
-	f64 cPitch_sYaw = cPitch * sYaw;
+	f64 srsp = sr * sp;
+	f64 crsp = cr * sp;
 
-	M[1] = (T)(sPitch_sYaw * cRoll - cPitch * sRoll);
-	M[5] = (T)(sPitch_sYaw * sRoll + cPitch * cRoll);
-	M[9] = (T)(sPitch * cYaw);
+	M[1] = (T)(srsp * cy - cr * sy);
+	M[5] = (T)(srsp * sy + cr * cy);
+	M[9] = (T)(sr * cp);
 
-	M[2] = (T)(cPitch_sYaw * cRoll + sPitch * sRoll);
-	M[6] = (T)(cPitch_sYaw * sRoll - sPitch * cRoll);
-	M[10] = (T)(cPitch * cYaw);
+	M[2] = (T)(crsp * cy + sr * sy);
+	M[6] = (T)(crsp * sy - sr * cy);
+	M[10] = (T)(cr * cp);
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -961,6 +1015,9 @@ inline CMatrix4<T> &CMatrix4<T>::setRotationAxisRadians(const T &angle, const ve
 	M[9] = (T)(tz * axis.Y - sx);
 	M[10] = (T)(tz * axis.Z + c);
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -971,6 +1028,9 @@ inline CMatrix4<T> &CMatrix4<T>::makeIdentity()
 {
 	memset(M, 0, 16 * sizeof(T));
 	M[0] = M[5] = M[10] = M[15] = (T)1;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = true;
+#endif
 	return *this;
 }
 
@@ -981,6 +1041,10 @@ inline CMatrix4<T> &CMatrix4<T>::makeIdentity()
 template <class T>
 inline bool CMatrix4<T>::isIdentity() const
 {
+#if defined(USE_MATRIX_TEST)
+	if (definitelyIdentityMatrix)
+		return true;
+#endif
 	if (!core::equals(M[12], (T)0) || !core::equals(M[13], (T)0) || !core::equals(M[14], (T)0) || !core::equals(M[15], (T)1))
 		return false;
 
@@ -1004,6 +1068,9 @@ inline bool CMatrix4<T>::isIdentity() const
 				if ((j != i) && (!iszero((*this)(i,j))))
 					return false;
 */
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = true;
+#endif
 	return true;
 }
 
@@ -1039,6 +1106,10 @@ inline bool CMatrix4<T>::isOrthogonal() const
 template <class T>
 inline bool CMatrix4<T>::isIdentity_integer_base() const
 {
+#if defined(USE_MATRIX_TEST)
+	if (definitelyIdentityMatrix)
+		return true;
+#endif
 	if (IR(M[0]) != F32_VALUE_1)
 		return false;
 	if (IR(M[1]) != 0)
@@ -1075,6 +1146,9 @@ inline bool CMatrix4<T>::isIdentity_integer_base() const
 	if (IR(M[15]) != F32_VALUE_1)
 		return false;
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = true;
+#endif
 	return true;
 }
 
@@ -1328,6 +1402,9 @@ inline bool CMatrix4<T>::getInverse(CMatrix4<T> &out) const
 						  m[1] * (m[6] * m[8] - m[4] * m[10]) +
 						  m[2] * (m[4] * m[9] - m[5] * m[8]));
 
+#if defined(USE_MATRIX_TEST)
+	out.definitelyIdentityMatrix = definitelyIdentityMatrix;
+#endif
 	return true;
 }
 
@@ -1356,6 +1433,9 @@ inline bool CMatrix4<T>::getInversePrimitive(CMatrix4<T> &out) const
 	out.M[14] = (T) - (M[12] * M[8] + M[13] * M[9] + M[14] * M[10]);
 	out.M[15] = 1;
 
+#if defined(USE_MATRIX_TEST)
+	out.definitelyIdentityMatrix = definitelyIdentityMatrix;
+#endif
 	return true;
 }
 
@@ -1364,6 +1444,10 @@ inline bool CMatrix4<T>::getInversePrimitive(CMatrix4<T> &out) const
 template <class T>
 inline bool CMatrix4<T>::makeInverse()
 {
+#if defined(USE_MATRIX_TEST)
+	if (definitelyIdentityMatrix)
+		return true;
+#endif
 	CMatrix4<T> temp(EM4CONST_NOTHING);
 
 	if (getInverse(temp)) {
@@ -1380,6 +1464,9 @@ inline CMatrix4<T> &CMatrix4<T>::operator=(const T &scalar)
 	for (s32 i = 0; i < 16; ++i)
 		M[i] = scalar;
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1422,6 +1509,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixPerspectiveFovRH(
 		M[14] = (T)(2.0f * zNear * zFar / (zNear - zFar));
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1464,6 +1554,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixPerspectiveFovLH(
 		M[14] = (T)(2.0f * zNear * zFar / (zNear - zFar));
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1496,6 +1589,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixPerspectiveFovInfinityLH(
 	M[14] = (T)(zNear * (epsilon - 1.f));
 	M[15] = 0;
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1535,6 +1631,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixOrthoLH(
 		M[14] = (T) - (zFar + zNear) / (zFar - zNear);
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1574,6 +1673,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixOrthoRH(
 		M[14] = (T) - (zFar + zNear) / (zFar - zNear);
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1614,6 +1716,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixPerspectiveRH(
 		M[14] = (T)(2.0f * zNear * zFar / (zNear - zFar));
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1654,6 +1759,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildProjectionMatrixPerspectiveLH(
 		M[14] = (T)(2.0f * zNear * zFar / (zNear - zFar));
 	}
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1683,7 +1791,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildShadowMatrix(const core::vector3df &light,
 	M[13] = (T)(-plane.D * light.Y);
 	M[14] = (T)(-plane.D * light.Z);
 	M[15] = (T)(-plane.D * point + d);
-
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1721,7 +1831,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildCameraLookAtMatrixLH(
 	M[13] = (T)-yaxis.dotProduct(position);
 	M[14] = (T)-zaxis.dotProduct(position);
 	M[15] = 1;
-
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1759,7 +1871,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildCameraLookAtMatrixRH(
 	M[13] = (T)-yaxis.dotProduct(position);
 	M[14] = (T)-zaxis.dotProduct(position);
 	M[15] = 1;
-
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -1810,6 +1924,9 @@ inline void CMatrix4<T>::getTransposed(CMatrix4<T> &o) const
 	o[13] = M[7];
 	o[14] = M[11];
 	o[15] = M[15];
+#if defined(USE_MATRIX_TEST)
+	o.definitelyIdentityMatrix = definitelyIdentityMatrix;
+#endif
 }
 
 // used to scale <-1,-1><1,1> to viewport
@@ -1947,6 +2064,9 @@ inline void CMatrix4<T>::setRotationCenter(const core::vector3df &center, const 
 	M[13] = -M[1] * center.X - M[5] * center.Y - M[9] * center.Z + (center.Y - translation.Y);
 	M[14] = -M[2] * center.X - M[6] * center.Y - M[10] * center.Z + (center.Z - translation.Z);
 	M[15] = (T)1.0;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 }
 
 /*!
@@ -1988,7 +2108,9 @@ inline CMatrix4<T> &CMatrix4<T>::buildTextureTransform(f32 rotateRad,
 	M[13] = 0;
 	M[14] = 0;
 	M[15] = 1;
-
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
 }
 
@@ -2007,6 +2129,9 @@ inline CMatrix4<T> &CMatrix4<T>::setTextureRotationCenter(f32 rotateRad)
 	M[8] = (T)(0.5f * (s - c) + 0.5f);
 	M[9] = (T)(-0.5f * (s + c) + 0.5f);
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = definitelyIdentityMatrix && (rotateRad == 0.0f);
+#endif
 	return *this;
 }
 
@@ -2016,6 +2141,9 @@ inline CMatrix4<T> &CMatrix4<T>::setTextureTranslate(f32 x, f32 y)
 	M[8] = (T)x;
 	M[9] = (T)y;
 
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = definitelyIdentityMatrix && (x == 0.0f) && (y == 0.0f);
+#endif
 	return *this;
 }
 
@@ -2031,6 +2159,10 @@ inline CMatrix4<T> &CMatrix4<T>::setTextureTranslateTransposed(f32 x, f32 y)
 {
 	M[2] = (T)x;
 	M[6] = (T)y;
+
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = definitelyIdentityMatrix && (x == 0.0f) && (y == 0.0f);
+#endif
 	return *this;
 }
 
@@ -2039,6 +2171,9 @@ inline CMatrix4<T> &CMatrix4<T>::setTextureScale(f32 sx, f32 sy)
 {
 	M[0] = (T)sx;
 	M[5] = (T)sy;
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = definitelyIdentityMatrix && (sx == 1.0f) && (sy == 1.0f);
+#endif
 	return *this;
 }
 
@@ -2056,6 +2191,10 @@ inline CMatrix4<T> &CMatrix4<T>::setTextureScaleCenter(f32 sx, f32 sy)
 	M[5] = (T)sy;
 	M[8] = (T)(0.5f - 0.5f * sx);
 	M[9] = (T)(0.5f - 0.5f * sy);
+
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = definitelyIdentityMatrix && (sx == 1.0f) && (sy == 1.0f);
+#endif
 	return *this;
 }
 
@@ -2064,13 +2203,43 @@ template <class T>
 inline CMatrix4<T> &CMatrix4<T>::setM(const T *data)
 {
 	memcpy(M, data, 16 * sizeof(T));
+
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = false;
+#endif
 	return *this;
+}
+
+// sets if the matrix is definitely identity matrix
+template <class T>
+inline void CMatrix4<T>::setDefinitelyIdentityMatrix(bool isDefinitelyIdentityMatrix)
+{
+#if defined(USE_MATRIX_TEST)
+	definitelyIdentityMatrix = isDefinitelyIdentityMatrix;
+#else
+	(void)isDefinitelyIdentityMatrix; // prevent compiler warning
+#endif
+}
+
+// gets if the matrix is definitely identity matrix
+template <class T>
+inline bool CMatrix4<T>::getDefinitelyIdentityMatrix() const
+{
+#if defined(USE_MATRIX_TEST)
+	return definitelyIdentityMatrix;
+#else
+	return false;
+#endif
 }
 
 //! Compare two matrices using the equal method
 template <class T>
 inline bool CMatrix4<T>::equals(const core::CMatrix4<T> &other, const T tolerance) const
 {
+#if defined(USE_MATRIX_TEST)
+	if (definitelyIdentityMatrix && other.definitelyIdentityMatrix)
+		return true;
+#endif
 	for (s32 i = 0; i < 16; ++i)
 		if (!core::equals(M[i], other.M[i], tolerance))
 			return false;

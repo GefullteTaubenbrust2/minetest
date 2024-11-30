@@ -26,7 +26,6 @@
 #include "client/event_manager.h"
 #include "fontengine.h"
 #include "gui/touchcontrols.h"
-#include "gui/touchscreeneditor.h"
 #include "itemdef.h"
 #include "log.h"
 #include "log_internal.h"
@@ -142,11 +141,6 @@ struct LocalFormspecHandler : public TextDest
 
 			if (fields.find("btn_key_config") != fields.end()) {
 				g_gamecallback->keyConfig();
-				return;
-			}
-
-			if (fields.find("btn_touchscreen_layout") != fields.end()) {
-				g_gamecallback->touchscreenLayout();
 				return;
 			}
 
@@ -371,12 +365,18 @@ class GameGlobalShaderConstantSetter : public IShaderConstantSetter
 		m_animation_timer_delta_vertex{"animationTimerDelta"};
 	CachedPixelShaderSetting<float>
 		m_animation_timer_delta_pixel{"animationTimerDelta"};
+	CachedPixelShaderSetting<float, 3> m_artificial_light{ "artificialLight" };
 	CachedPixelShaderSetting<float, 3> m_day_light{"dayLight"};
 	CachedPixelShaderSetting<float, 3> m_minimap_yaw{"yawVec"};
-	CachedPixelShaderSetting<float, 3> m_camera_offset_pixel{"cameraOffset"};
+	CachedPixelShaderSetting<float> m_minimap_size{"mapSize"};
 	CachedVertexShaderSetting<float, 3> m_camera_offset_vertex{"cameraOffset"};
-	CachedPixelShaderSetting<float, 3> m_camera_position_pixel{ "cameraPosition" };
-	CachedVertexShaderSetting<float, 3> m_camera_position_vertex{ "cameraPosition" };
+	CachedPixelShaderSetting<float, 3> m_camera_offset_pixel{ "cameraOffset" };
+	CachedVertexShaderSetting<float, 3> m_camera_position_vertex{"cameraPosition"};
+	CachedPixelShaderSetting<float, 3> m_camera_position_pixel{"cameraPosition"};
+	CachedVertexShaderSetting<float, 16> m_camera_projinv_vertex{"mCameraProjInv"};
+	CachedPixelShaderSetting<float, 16> m_camera_projinv_pixel{"mCameraProjInv"};
+	CachedVertexShaderSetting<float, 16> m_camera_view_vertex{"mCameraView"};
+	CachedPixelShaderSetting<float, 16> m_camera_view_pixel{"mCameraView"};
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture0{"texture0"};
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture1{"texture1"};
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture2{"texture2"};
@@ -397,6 +397,8 @@ class GameGlobalShaderConstantSetter : public IShaderConstantSetter
 	CachedPixelShaderSetting<float> m_bloom_strength_pixel{"bloomStrength"};
 	CachedPixelShaderSetting<float> m_bloom_radius_pixel{"bloomRadius"};
 	CachedPixelShaderSetting<float> m_saturation_pixel{"saturation"};
+	float m_gamma;
+	CachedPixelShaderSetting<float> m_gamma_pixel{"gamma"};
 	bool m_volumetric_light_enabled;
 	CachedPixelShaderSetting<float, 3>
 		m_sun_position_pixel{"sunPositionScreen"};
@@ -406,6 +408,18 @@ class GameGlobalShaderConstantSetter : public IShaderConstantSetter
 	CachedPixelShaderSetting<float> m_moon_brightness_pixel{"moonBrightness"};
 	CachedPixelShaderSetting<float>
 		m_volumetric_light_strength_pixel{"volumetricLightStrength"};
+	CachedPixelShaderSetting<float, 3>
+		m_volumetric_beta_r0_pixel{ "beta_r0_l" };
+	CachedVertexShaderSetting<float, 3>
+		m_volumetric_beta_r0_vertex{ "beta_r0_l" };
+	CachedPixelShaderSetting<float, 3> m_cdl_slope_pixel{"cdl_slope"};
+	CachedPixelShaderSetting<float, 3> m_cdl_offset_pixel{"cdl_offset"};
+	CachedPixelShaderSetting<float, 3> m_cdl_power_pixel{"cdl_power"};
+	CachedPixelShaderSetting<float> m_vignette_dark_pixel{"vignette_dark"};
+	CachedPixelShaderSetting<float> m_vignette_bright_pixel{"vignette_bright"};
+	CachedPixelShaderSetting<float> m_vignette_power_pixel{"vignette_power"};
+	CachedPixelShaderSetting<float> m_fov_pixel{"fov"};
+	CachedPixelShaderSetting<float, 2> m_window_size_pixel{"windowSize"};
 
 	static constexpr std::array<const char*, 1> SETTING_CALLBACKS = {
 		"exposure_compensation",
@@ -435,6 +449,7 @@ public:
 		m_user_exposure_compensation = g_settings->getFloat("exposure_compensation", -1.0f, 1.0f);
 		m_bloom_enabled = g_settings->getBool("enable_bloom");
 		m_volumetric_light_enabled = g_settings->getBool("enable_volumetric_lighting") && m_bloom_enabled;
+		m_gamma = g_settings->getFloat("secondstage_gamma");
 	}
 
 	~GameGlobalShaderConstantSetter()
@@ -461,15 +476,33 @@ public:
 		if (m_client->getMinimap()) {
 			v3f minimap_yaw = m_client->getMinimap()->getYawVec();
 			m_minimap_yaw.set(minimap_yaw, services);
+			float minimap_size = m_client->getMinimap()->getModeDef().map_size;
+			m_minimap_size.set(&minimap_size, services);
 		}
 
 		v3f offset = intToFloat(m_client->getCamera()->getOffset(), BS);
-		m_camera_offset_pixel.set(offset, services);
 		m_camera_offset_vertex.set(offset, services);
+		m_camera_offset_pixel.set(offset, services);
 
 		v3f camera_position = m_client->getCamera()->getPosition();
+		m_camera_position_vertex.set(camera_position, services);
 		m_camera_position_pixel.set(camera_position, services);
-		m_camera_position_pixel.set(camera_position, services);
+
+		core::matrix4 camera_proj = m_client->getCamera()->getCameraNode()->getProjectionMatrix();
+		core::matrix4 camera_projinv;
+		camera_proj.getInverse(camera_projinv);
+		m_camera_projinv_vertex.set(camera_projinv, services);
+		m_camera_projinv_pixel.set(camera_projinv, services);
+
+		core::matrix4 camera_view = m_client->getCamera()->getCameraNode()->getViewMatrix();
+		m_camera_view_vertex.set(camera_view, services);
+		m_camera_view_pixel.set(camera_view, services);
+
+		float fov = m_client->getCamera()->getFovMax();
+		m_fov_pixel.set(&fov, services);
+		v2u32 window_size_int = RenderingEngine::getWindowSize();
+		core::vector2df window_size = core::vector2df(window_size_int.X, window_size_int.Y);
+		m_window_size_pixel.set(window_size, services);
 
 		SamplerLayer_t tex_id;
 		tex_id = 0;
@@ -509,6 +542,28 @@ public:
 
 		float saturation = lighting.saturation;
 		m_saturation_pixel.set(&saturation, services);
+		video::SColorf artificial_light = lighting.artificial_light_color;
+		m_artificial_light.set(artificial_light, services);
+
+		float gamma = m_gamma;
+		m_gamma_pixel.set(&gamma, services);
+
+		if (g_settings->getBool("enable_vignette")) {
+			const Vignette &vignette_params = lighting.vignette;
+			m_vignette_dark_pixel.set(&vignette_params.dark, services);
+			m_vignette_bright_pixel.set(&vignette_params.bright, services);
+			m_vignette_power_pixel.set(&vignette_params.power, services);
+		}
+
+		if (g_settings->getBool("enable_color_grading")) {
+			const ColorDecisionList& cdl_params = lighting.cdl;
+			core::vector3df slope = cdl_params.slope;
+			m_cdl_slope_pixel.set(slope, services);
+			core::vector3df offset = cdl_params.offset;
+			m_cdl_offset_pixel.set(offset, services);
+			core::vector3df power = cdl_params.power;
+			m_cdl_power_pixel.set(power, services);
+		}
 
 		if (m_volumetric_light_enabled) {
 			// Map directional light to screen space
@@ -552,6 +607,10 @@ public:
 
 			float volumetric_light_strength = lighting.volumetric_light_strength;
 			m_volumetric_light_strength_pixel.set(&volumetric_light_strength, services);
+
+			core::vector3df beta_r0 = lighting.volumetric_beta_r0;
+			m_volumetric_beta_r0_vertex.set(beta_r0, services);
+			m_volumetric_beta_r0_pixel.set(beta_r0, services);
 		}
 	}
 
@@ -1848,12 +1907,6 @@ inline bool Game::handleCallbacks()
 		(void)make_irr<GUIKeyChangeMenu>(guienv, guiroot, -1,
 				      &g_menumgr, texture_src);
 		g_gamecallback->keyconfig_requested = false;
-	}
-
-	if (g_gamecallback->touchscreenlayout_requested) {
-		(new GUITouchscreenLayout(guienv, guiroot, -1,
-				     &g_menumgr, texture_src))->drop();
-		g_gamecallback->touchscreenlayout_requested = false;
 	}
 
 	if (!g_gamecallback->show_open_url_dialog.empty()) {
@@ -4522,14 +4575,9 @@ void Game::showPauseMenu()
 			<< strgettext("Sound Volume") << "]";
 	}
 #endif
+	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_key_config;"
+		<< strgettext("Controls")  << "]";
 #endif
-	if (g_touchcontrols) {
-		os << "button_exit[4," << (ypos++) << ";3,0.5;btn_touchscreen_layout;"
-			<< strgettext("Touchscreen Layout")  << "]";
-	} else {
-		os << "button_exit[4," << (ypos++) << ";3,0.5;btn_key_config;"
-			<< strgettext("Controls")  << "]";
-	}
 	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_menu;"
 		<< strgettext("Exit to Menu") << "]";
 	os		<< "button_exit[4," << (ypos++) << ";3,0.5;btn_exit_os;"

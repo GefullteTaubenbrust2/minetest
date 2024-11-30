@@ -669,6 +669,9 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 	shaders_header << "#define ENABLE_WAVING_PLANTS " << g_settings->getBool("enable_waving_plants") << "\n";
 	shaders_header << "#define ENABLE_TONE_MAPPING " << g_settings->getBool("tone_mapping") << "\n";
 
+	if (g_settings->getBool("enable_tinted_fog"))
+		shaders_header << "#define ENABLE_TINTED_FOG 1\n";
+
 	if (g_settings->getBool("enable_dynamic_shadows")) {
 		shaders_header << "#define ENABLE_DYNAMIC_SHADOWS 1\n";
 		if (g_settings->getBool("shadow_map_color"))
@@ -676,6 +679,9 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 
 		if (g_settings->getBool("shadow_poisson_filter"))
 			shaders_header << "#define POISSON_FILTER 1\n";
+
+		if (g_settings->getBool("enable_bumpmaps"))
+			shaders_header << "#define ENABLE_BUMPMAPS 1\n";
 
 		if (g_settings->getBool("enable_water_reflections"))
 			shaders_header << "#define ENABLE_WATER_REFLECTIONS 1\n";
@@ -693,6 +699,9 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 		if (shadow_soft_radius < 1.0f)
 			shadow_soft_radius = 1.0f;
 		shaders_header << "#define SOFTSHADOWRADIUS " << shadow_soft_radius << "\n";
+
+		if (g_settings->getBool("enable_sun_tint"))
+			shaders_header << "#define ENABLE_TINTED_SUNLIGHT 1\n";
 	}
 
 	if (g_settings->getBool("enable_bloom")) {
@@ -703,6 +712,12 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 
 	if (g_settings->getBool("enable_auto_exposure"))
 		shaders_header << "#define ENABLE_AUTO_EXPOSURE 1\n";
+
+	if (g_settings->getBool("enable_color_grading"))
+		shaders_header << "#define ENABLE_COLOR_GRADING 1\n";
+
+	if (g_settings->getBool("enable_vignette"))
+		shaders_header << "#define ENABLE_VIGNETTE 1\n";
 
 	if (g_settings->get("antialiasing") == "ssaa") {
 		shaders_header << "#define ENABLE_SSAA 1\n";
@@ -715,6 +730,10 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 
 	if (g_settings->getBool("enable_volumetric_lighting")) {
 		shaders_header << "#define VOLUMETRIC_LIGHT 1\n";
+	}
+
+	if (g_settings->getBool("enable_volumetric_depth_attenuation")) {
+		shaders_header << "#define VOLUMETRIC_DEPTH_ATTENUATION 1\n";
 	}
 
 	std::string common_header = shaders_header.str();

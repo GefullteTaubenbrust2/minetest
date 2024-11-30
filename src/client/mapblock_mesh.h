@@ -36,7 +36,9 @@ struct MeshMakeData
 
 	const NodeDefManager *nodedef;
 
-	MeshMakeData(const NodeDefManager *ndef, u16 side_length);
+	bool m_use_tangent_vertices;
+
+	MeshMakeData(const NodeDefManager *ndef, u16 side_length, bool use_tangent_vertices = false);
 
 	/*
 		Copy block data manually (to allow optimizations by the caller)
@@ -209,14 +211,8 @@ public:
 	/// Center of the bounding-sphere, in BS-space, relative to block pos.
 	v3f getBoundingSphereCenter() const { return m_bounding_sphere_center; }
 
-	/** Update transparent buffers to render towards the camera.
-	 * @param group_by_buffers If true, triangles in the same buffer are batched
-	 *     into the same PartialMeshBuffer, resulting in fewer draw calls, but
-	 *     wrong order. Triangles within a single buffer are still ordered, and
-	 *     buffers are ordered relative to each other (with respect to their nearest
-	 *     triangle).
-	 */
-	void updateTransparentBuffers(v3f camera_pos, v3s16 block_pos, bool group_by_buffers);
+	/// update transparent buffers to render towards the camera
+	void updateTransparentBuffers(v3f camera_pos, v3s16 block_pos);
 	void consolidateTransparentBuffers();
 
 	/// get the list of transparent buffers
@@ -239,6 +235,8 @@ private:
 
 	f32 m_bounding_radius;
 	v3f m_bounding_sphere_center;
+
+	bool m_use_tangent_vertices;
 
 	// Must animate() be called before rendering?
 	bool m_has_animation;

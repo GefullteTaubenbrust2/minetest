@@ -5657,8 +5657,6 @@ Utilities
       abm_without_neighbors = true,
       -- biomes have a weight parameter (5.11.0)
       biome_weights = true,
-      -- Particles can specify a "clip" blend mode (5.11.0)
-      particle_blend_clip = true,
   }
   ```
 
@@ -6699,9 +6697,6 @@ Formspec
 * `core.hypertext_escape(string)`: returns a string
     * escapes the characters "\", "<", and ">" to show text in a hypertext element.
     * not safe for use with tag attributes.
-    * this function does not do formspec escaping, you will likely need to do
-      `core.formspec_escape(core.hypertext_escape(string))` if the hypertext is
-      not already being formspec escaped.
 * `core.explode_table_event(string)`: returns a table
     * returns e.g. `{type="CHG", row=1, column=2}`
     * `type` is one of:
@@ -8827,6 +8822,21 @@ child will follow movement and rotation of that bone.
             * Currently, bloom `intensity` and `strength_factor` affect volumetric
               lighting `strength` and vice versa. This behavior is to be changed
               in the future, do not rely on it.
+        * `beta_r0`: the scattering coefficient that controls the tint of sunlight during sunrise and sunset.
+            * Defaults to { x = 3.3362176e-01, y = 8.75378289198826e-01, z = 1.95342379700656} which is physically accurate.
+            * This may be used to create effects like differently colored sunsets on alien planets.
+            * Setting all components to zero effectively disables tinted sunlight.
+      * `vignette`: is a table that controls the vignette post-processing effect.
+        * This has no effect on clients who have the "Vignette" effects disabled.
+        * `dark`: brightness of the vignette's darkest part (default: `0.3`)
+        * `bright`: brightness of the vignette's brightest part (default: `1.1`)
+        * `power`: the higher this is set, the more the vignette "retreats" to the edges of the screen (default: `1.1`)
+      * `cdl`: is a table that controls the ASL CDL color grading effect.
+        * This has no effect on clients who have the "Color grading" effect disabled.
+        * The output color follows the equation: `out = pow(in*slope+offset, power)`
+        * `slope`: "Tints" the scene, affects brighter colors more (default: `{x=1.2, y=1.0, z=0.8}`)
+        * `offset`: This can be used to brighten or darken the scene (default: `{x=0.0, y=0.0, z=0.0}`)
+        * `power`: Tints mostly the darker parts of the scene (default: `{x=1.25, y=1.0, z=0.9}`)
 
 * `get_lighting()`: returns the current state of lighting for the player.
     * Result is a table with the same fields as `light_definition` in `set_lighting`.
@@ -8895,7 +8905,7 @@ For `core.get_perlin_map()`, the actual seed used is the noiseparams seed
 plus the world seed, to create world-specific noise.
 
 Format of `size` is `{x=dimx, y=dimy, z=dimz}`. The `z` component is omitted
-for 2D noise, and it must be larger than 1 for 3D noise (otherwise
+for 2D noise, and it must be must be larger than 1 for 3D noise (otherwise
 `nil` is returned).
 
 For each of the functions with an optional `buffer` parameter: If `buffer` is
@@ -11488,14 +11498,6 @@ texture = {
     -- (default) blends transparent pixels with those they are drawn atop
     -- according to the alpha channel of the source texture. useful for
     -- e.g. material objects like rocks, dirt, smoke, or node chunks
-    -- note: there will be rendering bugs when particles interact with
-    -- translucent nodes. particles are also not transparency-sorted
-    -- relative to each other.
-    blend = "clip",
-    -- pixels are either fully opaque or fully transparent,
-    -- depending on whether alpha is greater than or less than 50%
-    -- (just like `use_texture_alpha = "clip"` for nodes).
-    -- you should prefer this if you don't need semi-transparency, as it's faster.
     blend = "add",
     -- adds the value of pixels to those underneath them, modulo the sources
     -- alpha channel. useful for e.g. bright light effects like sparks or fire

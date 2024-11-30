@@ -21,7 +21,6 @@
 #include "filesys.h"
 #include "mapblock.h"
 #include "server/serveractiveobject.h"
-#include "serialization.h" // SER_FMT_VER_INVALID
 #include "settings.h"
 #include "profiler.h"
 #include "log.h"
@@ -1901,7 +1900,7 @@ void Server::SendOverrideDayNightRatio(session_t peer_id, bool do_override,
 	Send(&pkt);
 }
 
-void Server::SendSetLighting(session_t peer_id, const Lighting &lighting)
+void Server::SendSetLighting(session_t peer_id, const Lighting & lighting)
 {
 	NetworkPacket pkt(TOCLIENT_SET_LIGHTING,
 			4, peer_id);
@@ -1919,6 +1918,14 @@ void Server::SendSetLighting(session_t peer_id, const Lighting &lighting)
 	pkt << lighting.volumetric_light_strength << lighting.shadow_tint;
 	pkt << lighting.bloom_intensity << lighting.bloom_strength_factor <<
 			lighting.bloom_radius;
+	pkt << lighting.artificial_light_color;
+	pkt << lighting.volumetric_beta_r0;
+	pkt << lighting.vignette.dark
+		<< lighting.vignette.bright
+		<< lighting.vignette.power;
+	pkt << lighting.cdl.slope;
+	pkt << lighting.cdl.offset;
+	pkt << lighting.cdl.power;
 
 	Send(&pkt);
 }
@@ -4192,7 +4199,7 @@ ModStorageDatabase *Server::openModStorageDatabase(const std::string &world_path
 		warningstream << "/!\\ You are using the old mod storage files backend. "
 			<< "This backend is deprecated and may be removed in a future release /!\\"
 			<< std::endl << "Switching to SQLite3 is advised, "
-			<< "please read https://wiki.luanti.org/Database_backends." << std::endl;
+			<< "please read http://wiki.minetest.net/Database_backends." << std::endl;
 
 	return openModStorageDatabase(backend, world_path, world_mt);
 }

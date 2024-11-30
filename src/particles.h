@@ -233,8 +233,7 @@ namespace ParticleParamTypes
 	}
 
 	enum class AttractorKind : u8 { none, point, line, plane };
-	// Note: Allows at most 8 enum members (due to how this is serialized)
-	enum class BlendMode     : u8 { alpha, add, sub, screen, clip, BlendMode_END };
+	enum class BlendMode     : u8 { alpha, add, sub, screen  };
 
 	// these are consistently-named convenience aliases to make code more readable without `using ParticleParamTypes` declarations
 	using v3fRange = RangedParameter<v3fParameter>;

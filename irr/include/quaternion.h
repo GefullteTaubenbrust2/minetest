@@ -358,6 +358,8 @@ inline void quaternion::getMatrixFast(matrix4 &dest) const
 	dest[13] = 0.f;
 	dest[14] = 0.f;
 	dest[15] = 1.f;
+
+	dest.setDefinitelyIdentityMatrix(false);
 }
 
 /*!
@@ -395,6 +397,8 @@ inline void quaternion::getMatrix(matrix4 &dest,
 	dest[13] = center.Y;
 	dest[14] = center.Z;
 	dest[15] = 1.f;
+
+	dest.setDefinitelyIdentityMatrix(false);
 }
 
 /*!
@@ -467,6 +471,8 @@ inline void quaternion::getMatrix_transposed(matrix4 &dest) const
 	dest[7] = 0.f;
 	dest[11] = 0.f;
 	dest[15] = 1.f;
+
+	dest.setDefinitelyIdentityMatrix(false);
 }
 
 // Inverts this quaternion

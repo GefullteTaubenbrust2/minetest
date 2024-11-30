@@ -77,9 +77,6 @@ public:
 
 	const ClientParticleTexRef &getTextureRef() const { return m_texture; }
 
-	ParticleParamTypes::BlendMode getBlendMode() const
-	{ return m_texture.tex ? m_texture.tex->blendmode : m_p.texture.blendmode; }
-
 	ParticleBuffer *getBuffer() const { return m_buffer; }
 	bool attachToBuffer(ParticleBuffer *buffer);
 
@@ -234,7 +231,7 @@ protected:
 		ParticleParameters &p, video::ITexture **texture, v2f &texpos,
 		v2f &texsize, video::SColor *color, u8 tilenum = 0);
 
-	static video::SMaterial getMaterialForParticle(const Particle *texture);
+	static video::SMaterial getMaterialForParticle(const ClientParticleTexRef &texture);
 
 	bool addParticle(std::unique_ptr<Particle> toadd);
 

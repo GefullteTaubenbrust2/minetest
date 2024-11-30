@@ -50,28 +50,21 @@
 	28: Added "private" flag to NodeMetadata
 	29: Switched compression to zstd, a bit of reorganization
 */
-
 // This represents an uninitialized or invalid format
-constexpr u8 SER_FMT_VER_INVALID = 255;
+#define SER_FMT_VER_INVALID 255
 // Highest supported serialization version
-constexpr u8 SER_FMT_VER_HIGHEST_READ = 29;
+#define SER_FMT_VER_HIGHEST_READ 29
 // Saved on disk version
-constexpr u8 SER_FMT_VER_HIGHEST_WRITE = 29;
+#define SER_FMT_VER_HIGHEST_WRITE 29
 // Lowest supported serialization version
-constexpr u8 SER_FMT_VER_LOWEST_READ = 0;
+#define SER_FMT_VER_LOWEST_READ 0
 // Lowest serialization version for writing
 // Can't do < 24 anymore; we have 16-bit dynamically allocated node IDs
 // in memory; conversion just won't work in this direction.
-constexpr u8 SER_FMT_VER_LOWEST_WRITE = 24;
+#define SER_FMT_VER_LOWEST_WRITE 24
 
-inline bool ser_ver_supported_read(s32 v)
-{
+inline bool ser_ver_supported(s32 v) {
 	return v >= SER_FMT_VER_LOWEST_READ && v <= SER_FMT_VER_HIGHEST_READ;
-}
-
-inline bool ser_ver_supported_write(s32 v)
-{
-	return v >= SER_FMT_VER_LOWEST_WRITE && v <= SER_FMT_VER_HIGHEST_WRITE;
 }
 
 /*

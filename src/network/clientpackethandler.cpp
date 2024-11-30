@@ -4,7 +4,6 @@
 
 #include "client/client.h"
 
-#include "exceptions.h"
 #include "irr_v2d.h"
 #include "util/base64.h"
 #include "client/camera.h"
@@ -63,7 +62,7 @@ void Client::handleCommand_Hello(NetworkPacket* pkt)
 	if (pkt->getSize() < 1)
 		return;
 
-	u8 serialization_ver; // negotiated value
+	u8 serialization_ver;
 	u16 proto_ver;
 	u16 unused_compression_mode;
 	u32 auth_mechs;
@@ -80,9 +79,9 @@ void Client::handleCommand_Hello(NetworkPacket* pkt)
 			<< ", proto_ver=" << proto_ver
 			<< ". Doing auth with mech " << chosen_auth_mechanism << std::endl;
 
-	if (!ser_ver_supported_read(serialization_ver)) {
+	if (!ser_ver_supported(serialization_ver)) {
 		infostream << "Client: TOCLIENT_HELLO: Server sent "
-				<< "unsupported ser_fmt_ver=" << (int)serialization_ver << std::endl;
+				<< "unsupported ser_fmt_ver"<< std::endl;
 		return;
 	}
 
@@ -1008,8 +1007,6 @@ void Client::handleCommand_AddParticleSpawner(NetworkPacket* pkt)
 
 	p.amount             = readU16(is);
 	p.time               = readF32(is);
-	if (p.time < 0)
-		throw SerializationError("particle spawner time < 0");
 
 	bool missing_end_values = false;
 	if (m_proto_ver >= 42) {
@@ -1818,5 +1815,15 @@ void Client::handleCommand_SetLighting(NetworkPacket *pkt)
 		*pkt >> lighting.bloom_intensity
 				>> lighting.bloom_strength_factor
 				>> lighting.bloom_radius;
+	if (pkt->getRemainingBytes() >= 4)
+		*pkt >> lighting.artificial_light_color;
+	if (pkt->getRemainingBytes() >= 60)
+		*pkt >> lighting.volumetric_beta_r0;
+		*pkt >> lighting.vignette.dark
+			>> lighting.vignette.bright
+			>> lighting.vignette.power;
+		*pkt >> lighting.cdl.slope;
+		*pkt >> lighting.cdl.offset;
+		*pkt >> lighting.cdl.power;
 	}
 }
