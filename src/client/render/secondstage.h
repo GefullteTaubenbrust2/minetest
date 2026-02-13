@@ -33,6 +33,16 @@ public:
 	 * @param value true to enable the bilinear filter, false to disable
 	 */
 	void setBilinearFilter(u8 index, bool value);
+
+	/**
+	 * Configure wrapping for a specific texture layer
+	 *
+	 * @param index Index of the texture layer
+	 * @param value true to enable repeating wrapping, false to disable
+	 */
+	void setWrapRepeat(u8 index, bool value);
+
+	void disableDepthTest();
 private:
 	u32 shader_id;
 	std::vector<u8> texture_map;

@@ -81,13 +81,19 @@ class GameGlobalShaderUniformSetter : public IShaderUniformSetter
 	CachedPixelShaderSetting<float, 3> m_day_light{"dayLight"};
 	CachedPixelShaderSetting<float, 3> m_minimap_yaw{"yawVec"};
 	CachedPixelShaderSetting<float> m_minimap_size{"minimapResolution"};
-	CachedVertexShaderSetting<float, 3> m_camera_offset_vertex{"cameraOffset"};
+	CachedVertexShaderSetting<float, 3> m_camera_offset_vertex{ "cameraOffset" };
 	CachedPixelShaderSetting<float, 3> m_camera_offset_pixel{ "cameraOffset" };
-	CachedVertexShaderSetting<float, 3> m_camera_position_vertex{"cameraPosition"};
-	CachedPixelShaderSetting<float, 3> m_camera_position_pixel{"cameraPosition"};
-	CachedVertexShaderSetting<float, 2> m_texel_size0_vertex{"texelSize0"};
-	CachedPixelShaderSetting<float, 2> m_texel_size0_pixel{"texelSize0"};
+	CachedVertexShaderSetting<float, 3> m_camera_position_vertex{ "cameraPosition" };
+	CachedPixelShaderSetting<float, 3> m_camera_position_pixel{ "cameraPosition" };
+	CachedVertexShaderSetting<float, 2> m_texel_size0_vertex{ "texelSize0" };
+	CachedPixelShaderSetting<float, 2> m_texel_size0_pixel{ "texelSize0" };
 	v2f m_texel_size0;
+	CachedVertexShaderSetting<float, 16> m_camera_projinv_vertex{ "mCameraProjInv" };
+	CachedPixelShaderSetting<float, 16> m_camera_projinv_pixel{ "mCameraProjInv" };
+	CachedVertexShaderSetting<float, 16> m_camera_view_vertex{ "mCameraView" };
+	CachedPixelShaderSetting<float, 16> m_camera_view_pixel{ "mCameraView" };
+	CachedPixelShaderSetting<float> m_camera_near_pixel{ "cameraNear" };
+	CachedPixelShaderSetting<float> m_camera_far_pixel{ "cameraFar" };
 
 	CachedStructPixelShaderSetting<float, 7> m_exposure_params_pixel{
 		"exposureParams",
@@ -125,6 +131,12 @@ class GameGlobalShaderUniformSetter : public IShaderUniformSetter
 	CachedPixelShaderSetting<float> m_vignette_power_pixel{"vignette_power"};
 	CachedPixelShaderSetting<float> m_foliage_translucency_pixel{ "foliage_translucency" };
 	CachedPixelShaderSetting<float> m_specular_intensity_pixel{ "specular_intensity" };
+	CachedPixelShaderSetting<float> m_cloud_height_pixel{ "cloudHeight" };
+	CachedPixelShaderSetting<float> m_cloud_thickness_pixel{ "cloudThickness" };
+	CachedPixelShaderSetting<float> m_cloud_density_pixel{ "cloudDensity" };
+	CachedPixelShaderSetting<float, 2> m_cloud_offset_pixel{ "cloudOffset" };
+	CachedPixelShaderSetting<float> m_cloud_radius_pixel{ "cloudRadius" };
+	CachedPixelShaderSetting<float, 3> m_volumetric_cloud_color{ "cloudColor" };
 
 	static constexpr std::array<const char*, 1> SETTING_CALLBACKS = {
 		"exposure_compensation",
@@ -194,6 +206,21 @@ public:
 		m_camera_position_vertex.set(camera_position, services);
 		m_camera_position_pixel.set(camera_position, services);
 
+		core::matrix4 camera_proj = m_client->getCamera()->getCameraNode()->getProjectionMatrix();
+		core::matrix4 camera_projinv;
+		camera_proj.getInverse(camera_projinv);
+		m_camera_projinv_vertex.set(camera_projinv, services);
+		m_camera_projinv_pixel.set(camera_projinv, services);
+
+		core::matrix4 camera_view = m_client->getCamera()->getCameraNode()->getViewMatrix();
+		m_camera_view_vertex.set(camera_view, services);
+		m_camera_view_pixel.set(camera_view, services);
+
+		float camera_near = m_client->getCamera()->getCameraNode()->getNearValue();
+		m_camera_near_pixel.set(&camera_near, services);
+		float camera_far = m_client->getCamera()->getCameraNode()->getFarValue();
+		m_camera_far_pixel.set(&camera_far, services);
+
 		m_texel_size0_vertex.set(m_texel_size0, services);
 		m_texel_size0_pixel.set(m_texel_size0, services);
 
@@ -248,6 +275,23 @@ public:
 		m_cdl_slope_pixel.set(cdl_params.slope, services);
 		m_cdl_offset_pixel.set(cdl_params.offset, services);
 		m_cdl_power_pixel.set(cdl_params.power, services);
+
+		// TODO: settings
+		Clouds* clouds = m_client->getClouds();
+		if (clouds && g_settings->getBool("enable_volumetric_clouds")) {
+			float cloud_height = clouds->getHeight() * 10.0f;
+			m_cloud_height_pixel.set(&cloud_height, services);
+			float cloud_thickness = clouds->getThickness() * 10.0f;
+			m_cloud_thickness_pixel.set(&cloud_thickness, services);
+			float cloud_density = clouds->getDensity();
+			m_cloud_density_pixel.set(&cloud_density, services);
+			v2f cloud_offset = clouds->getCloudOffset();
+			m_cloud_offset_pixel.set(cloud_offset, services);
+			float cloud_radius = g_settings->getU16("cloud_radius");
+			m_cloud_radius_pixel.set(&cloud_radius, services);
+			video::SColor cloud_color = clouds->getColor();
+			m_volumetric_cloud_color.set(cloud_color, services);
+		}
 
 		if (m_volumetric_light_enabled) {
 			// Map directional light to screen space
@@ -928,6 +972,7 @@ bool Game::createClient(const GameStartData &start_data)
 	/* Clouds
 	 */
 	clouds = make_irr<Clouds>(smgr, shader_src, -1, myrand());
+	//client->setClouds(clouds.get());
 
 	/* Skybox
 	 */
@@ -3594,7 +3639,7 @@ void Game::updateClouds(float dtime)
 		camera_node_position.Y   = camera_node_position.Y + camera_offset.Y * BS;
 		camera_node_position.Z   = camera_node_position.Z + camera_offset.Z * BS;
 		this->clouds->update(camera_node_position, this->sky->getCloudColor());
-		if (this->clouds->isCameraInsideCloud() && this->fogEnabled()) {
+		if (this->clouds->isCameraInsideCloud() && this->fogEnabled()/* && !g_settings->getBool("enable_volumetric_clouds")*/) {
 			// If camera is inside cloud and fog is enabled, use cloud's colors as sky colors.
 			video::SColor clouds_dark = this->clouds->getColor().getInterpolated(
 					video::SColor(255, 0, 0, 0), 0.9);

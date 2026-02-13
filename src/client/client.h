@@ -14,6 +14,7 @@
 #include "network/peerhandler.h"
 #include "util/numeric.h"
 #include "util/string.h" // StringMap
+#include "clouds.h"
 
 #include <map>
 #include <memory>
@@ -362,6 +363,10 @@ public:
 	Camera* getCamera () { return m_camera; }
 	scene::ISceneManager *getSceneManager();
 
+	void setClouds(Clouds* clouds) { m_clouds = clouds; }
+
+	Clouds* getClouds() { return m_clouds; }
+
 	// IGameDef interface
 	bool isClient() override { return true; }
 	IItemDefManager* getItemDefManager() override;
@@ -490,6 +495,8 @@ private:
 	ELoginRegister m_allow_login_or_register = ELoginRegister::Any;
 	Camera *m_camera = nullptr;
 	std::unique_ptr<Minimap> m_minimap;
+
+	Clouds* m_clouds;
 
 	// Server serialization version
 	u8 m_server_ser_ver;
