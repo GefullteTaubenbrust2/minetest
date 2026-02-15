@@ -124,7 +124,7 @@ float getCoarse(vec3 position) {
 	return texture2D(noiseTextureCoarse, (position.xz - cloudOffset) * 0.5 / CLOUD_SIZE / cloudRadius).r;
 }
 
-float getDensity(vec3 position) 
+float getCloudDensity(vec3 position) 
 {
 	float density = texture2D(noiseTextureCoarse, (position.xz - cloudOffset) * 0.5 / CLOUD_SIZE / cloudRadius).r *
 		mtsmoothstep(0.0, cloudThickness * 0.2, position.y - cloudHeight) *
@@ -135,13 +135,13 @@ float getDensity(vec3 position)
 	return 0.04 * density;
 }
 
-float getBrightness(vec3 position, float lightDistance) 
+float getCloudBrightness(vec3 position, float lightDistance) 
 {
 	float density = 0.;
 	for (int i = 1; i <= LIGHT_ITERATIONS; i++) {
 		vec3 rayPosition = position - v_LightDirection * lightDistance * float(i) / float(LIGHT_ITERATIONS);
 
-		density += getDensity(rayPosition) * float(lightDistance) / float(LIGHT_ITERATIONS);
+		density += getCloudDensity(rayPosition) * float(lightDistance) / float(LIGHT_ITERATIONS);
 	}
 	return exp(-density);
 }
@@ -223,13 +223,13 @@ void main(void)
 		for (int i = 0; i < ITERATIONS; i++) {
 			vec3 rayPosition = cameraPosition + viewVec * (startDepth + (endDepth - startDepth) * (float(i) + bias) / float(ITERATIONS));
 
-			float localDensity = getDensity(rayPosition) * dx;
+			float localDensity = getCloudDensity(rayPosition) * dx;
 
 			if (localDensity < 0.0001) continue;
 
 			float clarity = clamp(fogShadingParameter - fogShadingParameter * length(rayPosition - cameraPosition) / (fogDepth), 0.0, 1.0);
 			float outScatterContribution = exp(-0.5 * outScatter * localDensity);
-			float brightness = getBrightness(rayPosition, lightDistance) * forwardScatter * outScatterContribution * sunStrength + (1. - outScatterContribution);
+			float brightness = getCloudBrightness(rayPosition, lightDistance) * forwardScatter * outScatterContribution * sunStrength + (1. - outScatterContribution);
 			sunlightContribution = blend(sunlightContribution, brightness, 1. - exp(-density), 1. - exp(-localDensity));
 			alpha = blend(alpha, clarity, 1. - exp(-density), 1. - exp(-localDensity));
 
@@ -240,7 +240,7 @@ void main(void)
 	}
 
 	color.r = (1. - exp(-density)) * alpha;
-	color.g = sunlightContribution / 3.0;
+	color.g = sunlightContribution / 4.0;
 	color.b *= exp(-density);
 
 	gl_FragColor = vec4(color, 1.0);

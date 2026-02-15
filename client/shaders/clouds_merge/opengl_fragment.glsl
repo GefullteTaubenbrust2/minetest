@@ -35,7 +35,7 @@ float getDepth(vec2 screenspacePosition) {
 
 vec4 sampleClouds(vec2 uv, float raw_depth) {
 	vec4 cloudsKey = texture2D(cloudsTexture, uv);
-	cloudsKey.g *= 3.0;
+	cloudsKey.g *= 4.0;
 
 	vec3 darkColor = vec3(0.2, 0.4, 0.8) * dayLight;
 	const vec3 auroraDark = vec3(0., 0.5, 0.5);
