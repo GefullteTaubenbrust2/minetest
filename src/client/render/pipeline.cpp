@@ -211,7 +211,7 @@ void TextureBufferOutput::activate(PipelineContext &context)
 	if (!render_target)
 		render_target = driver->addRenderTarget();
 
-	//if (disable_clear) m_clear = false;
+	if (disable_clear) m_clear = false;
 
 	core::array<video::ITexture *> textures;
 	core::dimension2du size(0, 0);

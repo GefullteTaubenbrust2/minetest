@@ -423,9 +423,9 @@ void Clouds::render()
 				cloud_full_radius*1.2, fog_density, fog_pixelfog, fog_rangefog);
 	}
 
-//#if 0
-	driver->drawMeshBuffer(m_meshbuffer.get());
-//#endif
+	if (!g_settings->getBool("enable_volumetric_clouds")) {
+		driver->drawMeshBuffer(m_meshbuffer.get());
+	}
 
 	// Restore fog settings
 	driver->setFog(fog_color, fog_type, fog_start, fog_end, fog_density,

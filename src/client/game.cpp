@@ -972,7 +972,7 @@ bool Game::createClient(const GameStartData &start_data)
 	/* Clouds
 	 */
 	clouds = make_irr<Clouds>(smgr, shader_src, -1, myrand());
-	//client->setClouds(clouds.get());
+	client->setClouds(clouds.get());
 
 	/* Skybox
 	 */
@@ -3639,7 +3639,7 @@ void Game::updateClouds(float dtime)
 		camera_node_position.Y   = camera_node_position.Y + camera_offset.Y * BS;
 		camera_node_position.Z   = camera_node_position.Z + camera_offset.Z * BS;
 		this->clouds->update(camera_node_position, this->sky->getCloudColor());
-		if (this->clouds->isCameraInsideCloud() && this->fogEnabled()/* && !g_settings->getBool("enable_volumetric_clouds")*/) {
+		if (this->clouds->isCameraInsideCloud() && this->fogEnabled() && !g_settings->getBool("enable_volumetric_clouds")) {
 			// If camera is inside cloud and fog is enabled, use cloud's colors as sky colors.
 			video::SColor clouds_dark = this->clouds->getColor().getInterpolated(
 					video::SColor(255, 0, 0, 0), 0.9);

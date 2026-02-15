@@ -235,7 +235,7 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 	static const u8 TEXTURE_NOISE_COARSE = 11;
 	static const u8 TEXTURE_CLOUDS_1 = 12;
 	static const u8 TEXTURE_CLOUDS_2 = 13;
-	
+	//static const u8 TEXTURE_DEPTH_DOWNSAMPLE = 14;
 
 	// because bloom_format is floating point
 	const bool bloom_available = driver->queryFeature(video::EVDF_RENDER_TO_FLOAT_TEXTURE);
@@ -324,7 +324,7 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 
 	u8 final_color_source = TEXTURE_COLOR;
 
-	if (false) {
+	if (enable_volumetric_clouds) {
 		const u16 cloud_radius = g_settings->getU16("cloud_radius");
 
 		buffer->setTexture(TEXTURE_NOISE, core::dimension2du(256, 256), "noise", color_format);
@@ -338,6 +338,24 @@ RenderStep *addPostProcessing(RenderPipeline *pipeline, RenderStep *previousStep
 		buffer->setTexture(TEXTURE_CLOUDS_1, scale / (float)undersampling, "clouds_1", color_format, /*clear:*/ true);
 		buffer->setTexture(TEXTURE_CLOUDS_2, scale, "clouds_2", color_format);
 		buffer->setTexture(TEXTURE_CLOUD_DENSITY, scale, "cloud_density", color_format);
+
+		/*u8 depth_texture_clouds = TEXTURE_DEPTH;
+
+		if (undersampling > 1) {
+			buffer->setTexture(TEXTURE_DEPTH_DOWNSAMPLE, scale / (float)undersampling, "depth_downsample", color_format);
+
+			shader_id = client->getShaderSource()->getShader("downsample_depth", TILE_MATERIAL_PLAIN, NDT_MESH);
+			PostProcessingStep* downsample_depth = pipeline->addStep<PostProcessingStep>(shader_id, std::vector<u8>{ TEXTURE_DEPTH });
+			downsample_depth->setRenderSource(buffer);
+			downsample_depth->setRenderTarget(pipeline->createOwned<TextureBufferOutput>(buffer, TEXTURE_DEPTH_DOWNSAMPLE));
+			downsample_depth->setBilinearFilter(1, false);
+			downsample_depth->disableDepthTest();
+
+			depth_texture_clouds = TEXTURE_DEPTH_DOWNSAMPLE;
+
+			source = TEXTURE_DEPTH_DOWNSAMPLE;
+			final_color_source = source;
+		}*/
 
 		shader_id = client->getShaderSource()->getShader("volumetric_clouds", TILE_MATERIAL_PLAIN, NDT_MESH);
 		PostProcessingStep* volumetric_clouds = pipeline->addStep<PostProcessingStep>(shader_id, std::vector<u8> { TEXTURE_DEPTH, TEXTURE_NOISE, TEXTURE_NOISE_COARSE });

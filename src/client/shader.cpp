@@ -265,6 +265,14 @@ public:
 
 		if (g_settings->getBool("enable_volumetric_depth_attenuation"))
 			constants["VOLUMETRIC_DEPTH_ATTENUATION"] = 1;
+
+		if (g_settings->getBool("enable_volumetric_clouds")) {
+			constants["VOLUMETRICS_UNDERSAMPLING"] = g_settings->getU16("volumetrics_undersampling");
+			constants["ENABLE_VOLUMETRIC_CLOUDS"] = 1;
+		}
+
+		if (g_settings->getBool("enable_volumetric_auroras"))
+			constants["ENABLE_VOLUMETRIC_AURORAS"] = 1;
 	}
 };
 
