@@ -265,6 +265,9 @@ public:
 
 		if (g_settings->getBool("enable_volumetric_depth_attenuation"))
 			constants["VOLUMETRIC_DEPTH_ATTENUATION"] = 1;
+
+		if (g_settings->getBool("enable_pbr_materials"))
+			constants["ENABLE_PBR"] = 1;
 	}
 };
 
@@ -289,6 +292,7 @@ class MainShaderUniformSetter : public IShaderUniformSetter
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture1{"texture1"};
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture2{"texture2"};
 	CachedPixelShaderSetting<SamplerLayer_t> m_texture3{"texture3"};
+	CachedPixelShaderSetting<SamplerLayer_t> m_texture4{"texture4"};
 
 	// common material variables passed to shader
 	video::SColor m_material_color;
@@ -336,6 +340,8 @@ public:
 		m_texture2.set(&tex_id, services);
 		tex_id = 3;
 		m_texture3.set(&tex_id, services);
+		tex_id = 4;
+		m_texture4.set(&tex_id, services);
 
 		video::SColorf colorf(m_material_color);
 		m_material_color_setting.set(colorf, services);

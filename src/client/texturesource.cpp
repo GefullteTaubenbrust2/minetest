@@ -81,6 +81,10 @@ public:
 
 	video::ITexture* getTexture(const std::string &name, u32 *id = nullptr);
 
+	video::ITexture* getNormalTexture(const std::string& name, u32* id = nullptr);
+
+	video::ITexture* getMaterialTexture(const std::string& name, u32* id = nullptr);
+
 	video::ITexture *addArrayTexture(
 		const std::vector<std::string> &images, u32 *id = nullptr);
 
@@ -632,6 +636,49 @@ void TextureSource::rebuildTexture(video::IVideoDriver *driver, TextureInfo &ti)
 	ti.sourceImages = std::move(source_image_names);
 	if (t_old)
 		m_texture_trash.push_back(t_old);
+}
+
+video::ITexture* TextureSource::getNormalTexture(const std::string& name, u32* id)
+{
+	//if (isKnownSourceImage("override_normal.png"))
+		//return getTexture("override_normal.png");
+	std::string fname_base = name;
+	static const char* normal_ext = "_normal.png";
+	static const u32 normal_ext_size = strlen(normal_ext);
+	size_t pos = fname_base.find('.');
+	std::string fname_normal = fname_base.substr(0, pos) + normal_ext;
+	if (isKnownSourceImage(fname_normal)) {
+		// look for image extension and replace it
+		size_t i = 0;
+		while ((i = fname_base.find('.', i)) != std::string::npos) {
+			fname_base.replace(i, 4, normal_ext);
+			i += normal_ext_size;
+		}
+		warningstream << fname_base << '\n';
+		return getTexture(fname_base);
+	}
+	return NULL;
+}
+
+video::ITexture* TextureSource::getMaterialTexture(const std::string& name, u32* id)
+{
+	//if (isKnownSourceImage("override_material.png"))
+		//return getTexture("override_material.png");
+	std::string fname_base = name;
+	static const char* normal_ext = "_material.png";
+	static const u32 normal_ext_size = strlen(normal_ext);
+	size_t pos = fname_base.find('.');
+	std::string fname_normal = fname_base.substr(0, pos) + normal_ext;
+	if (isKnownSourceImage(fname_normal)) {
+		// look for image extension and replace it
+		size_t i = 0;
+		while ((i = fname_base.find('.', i)) != std::string::npos) {
+			fname_base.replace(i, 4, normal_ext);
+			i += normal_ext_size;
+		}
+		return getTexture(fname_base);
+	}
+	return NULL;
 }
 
 video::SColor TextureSource::getTextureAverageColor(const std::string &name)

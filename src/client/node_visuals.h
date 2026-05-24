@@ -32,6 +32,7 @@ struct NodeVisuals
 	scene::SMesh *mesh_ptr = nullptr; // mesh in case of mesh node
 	video::SColor minimap_color;
 	std::vector<video::SColor> *palette = nullptr;
+	bool use_tangent_vertices = false;
 
 	// alpha stays in ContentFeatures due to compatibility code that is necessary,
 	// because it was part of the node definition table in the past.

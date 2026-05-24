@@ -29,6 +29,8 @@ void AnimationInfo::updateTexture(video::SMaterial &material, float animation_ti
 void TileLayer::applyMaterialOptions(video::SMaterial &material, int layer) const
 {
 	material.setTexture(0, texture);
+	material.setTexture(1, texture_material);
+	material.setTexture(2, texture_normals);
 
 	material.BackfaceCulling = (material_flags & MATERIAL_FLAG_BACKFACE_CULLING) != 0;
 	if (!(material_flags & MATERIAL_FLAG_TILEABLE_HORIZONTAL)) {

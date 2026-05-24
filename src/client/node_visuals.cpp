@@ -154,6 +154,8 @@ static void fillTileAttribs(TileLayer *layer, TileAttribContext context,
 		if (!tex.texture) {
 			// wasn't pre-loaded: create standard texture on the fly
 			layer->texture = tsrc->getTexture(texture_image, &layer->texture_id);
+			layer->texture_normals = tsrc->getNormalTexture(texture_image, nullptr);
+			layer->texture_material = tsrc->getMaterialTexture(texture_image, nullptr);
 		} else {
 			layer->texture = tex.texture;
 			layer->texture_id = tex.texture_id;
@@ -518,6 +520,7 @@ void NodeVisuals::updateMesh(Client *client, const TextureSettings &tsettings)
 			infostream << "ContentFeatures: recalculating normals for mesh "
 				<< mesh << std::endl;
 			manip->recalculateNormals(mesh_ptr, true, false);
+			if (use_tangent_vertices) manip->recalculateTangents(mesh_ptr, false, true, false);
 		}
 	} else {
 		mesh_ptr = nullptr;

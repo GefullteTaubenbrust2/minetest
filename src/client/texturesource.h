@@ -49,6 +49,10 @@ public:
 
 	using ISimpleTextureSource::getTexture;
 
+	virtual video::ITexture* getNormalTexture(const std::string& name, u32* id = nullptr) = 0;
+
+	virtual video::ITexture* getMaterialTexture(const std::string& name, u32* id = nullptr) = 0;
+
 	/// @brief Generates a texture string into a standard texture
 	/// @return its ID
 	virtual u32 getTextureId(const std::string &image)=0;

@@ -130,6 +130,8 @@ struct TileLayer
 	// Ordered for size, please do not reorder
 
 	video::ITexture *texture = nullptr;
+	video::ITexture* texture_material = nullptr;
+	video::ITexture* texture_normals = nullptr;
 
 	u32 shader_id = 0;
 
