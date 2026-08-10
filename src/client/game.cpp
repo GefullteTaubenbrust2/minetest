@@ -125,6 +125,7 @@ class GameGlobalShaderUniformSetter : public IShaderUniformSetter
 	CachedPixelShaderSetting<float> m_vignette_power_pixel{"vignette_power"};
 	CachedPixelShaderSetting<float> m_foliage_translucency_pixel{ "foliage_translucency" };
 	CachedPixelShaderSetting<float> m_specular_intensity_pixel{ "specular_intensity" };
+	CachedPixelShaderSetting<float, 4> m_sky_color{ "sky_color" };
 
 	static constexpr std::array<const char*, 1> SETTING_CALLBACKS = {
 		"exposure_compensation",
@@ -165,6 +166,7 @@ public:
 
 	void onSetUniforms(video::IMaterialRendererServices *services) override
 	{
+		actionstream << "amogus" << std::endl;
 		u32 daynight_ratio = (float)m_client->getEnv().getDayNightRatio();
 		video::SColorf sunlight;
 		get_sunlight_color(&sunlight, daynight_ratio);
@@ -248,6 +250,8 @@ public:
 		m_cdl_slope_pixel.set(cdl_params.slope, services);
 		m_cdl_offset_pixel.set(cdl_params.offset, services);
 		m_cdl_power_pixel.set(cdl_params.power, services);
+
+		m_sky_color.set(m_sky->getSkyColor(), services);
 
 		if (m_volumetric_light_enabled) {
 			// Map directional light to screen space
@@ -519,6 +523,8 @@ bool Game::startup(volatile std::sig_atomic_t *kill,
 void Game::run()
 {
 	ZoneScoped;
+
+	actionstream << "Hello" << std::endl;
 
 	ProfilerGraph graph;
 	RunStats stats = {};

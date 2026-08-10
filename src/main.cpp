@@ -134,6 +134,8 @@ int main(int argc, char *argv[])
 	int retval;
 	debug_set_exception_handler();
 
+	errorstream << "AAAAAAAA" << std::endl;
+
 	g_logger.registerThread("Main");
 	g_logger.addOutputMaxLevel(&stderr_output, LL_ACTION);
 

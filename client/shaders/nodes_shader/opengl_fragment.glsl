@@ -10,6 +10,7 @@ uniform vec3 dayLight;
 uniform lowp vec4 fogColor;
 uniform float fogDistance;
 uniform float fogShadingParameter;
+uniform lowp vec4 sky_color;
 
 // The cameraOffset is the current center of the visible world.
 uniform highp vec3 cameraOffset;
@@ -41,6 +42,9 @@ uniform float crackTextureScale;
 	VARYING_ vec3 shadow_position;
 	VARYING_ float perspective_factor;
 	VARYING_ vec3 sunTint;
+#ifdef ENABLE_TINTED_SUNLIGHT
+	uniform vec3 scattering_coefficients;
+#endif
 #endif
 
 VARYING_ vec3 vNormal;
@@ -68,6 +72,18 @@ vec4 perm(vec4 x)
 {
 	return mod(((x * 34.0) + 1.0) * x, 289.0);
 }
+
+#ifdef ENABLE_TINTED_SUNLIGHT
+vec3 getDirectLightScatteringAtGround(vec3 v_LightDirection)
+{
+	// Based on talk at 2002 Game Developers Conference by Naty Hoffman and Arcot J. Preetham
+	const float unit_conversion = 1e-5; // Rayleigh scattering beta
+
+	const float atmosphere_height = 15000.; // height of the atmosphere in meters
+	// sun/moon light at the ground level, after going through the atmosphere
+	return exp(-scattering_coefficients * unit_conversion * atmosphere_height / (1e-5 - dot(v_LightDirection, vec3(0., 1., 0.))));
+}
+#endif
 
 // Corresponding gradient of snoise
 vec3 gnoise(vec3 p)
@@ -553,21 +569,31 @@ void main(void)
 		// We get the gradient information of the waves using gnoise.
 		vec2 gradient = wave_noise(wavePos, off);
 		fNormal = normalize(normalize(fNormal) + vec3(gradient.x, 0., gradient.y) * WATER_WAVE_HEIGHT * abs(fNormal.y) * 0.25);
-		reflect_ray = -normalize(v_LightDirection - fNormal * dot(v_LightDirection, fNormal) * 2.0);
 		float fresnel_factor = dot(fNormal, viewVec);
-
+		reflect_ray = -normalize(viewVec - fNormal * fresnel_factor * 2.0);
 		float brightness_factor = (1.0 - adjusted_night_ratio) / base.a;
 
 		// A little trig hack. We go from the dot product of viewVec and normal to the dot product of viewVec and tangent to apply a fresnel effect.
 		fresnel_factor = clamp(pow(1.0 - fresnel_factor * fresnel_factor, 8.0), 0.0, 1.0) * 0.8 + 0.2;
+		fresnel_factor = pow(abs(fresnel_factor), 5.0);
+
 		col.rgb *= 0.5;
-		vec3 reflection_color = mix(vec3(max(fogColor.r, max(fogColor.g, fogColor.b))), fogColor.rgb, f_shadow_strength);
+		vec3 sky = mix(fogColor.rgb, sky_color.rgb, mtsmoothstep(0.0, -0.2, reflect_ray.y));
+		vec3 reflection_color = mix(vec3(max(fogColor.r, max(fogColor.g, fogColor.b))), sky, f_shadow_strength) * (mtsmoothstep(0.1, 0.0, reflect_ray.y) * 0.5 + 0.5);
 
 		// Sky reflection
-		col.rgb += reflection_color * pow(fresnel_factor, 2.0) * 0.3 * brightness_factor;
+		col.rgb += reflection_color * fresnel_factor * 0.3 * brightness_factor;
+
+		vec3 tint = vec3(1.0);
+
+#ifdef ENABLE_TINTED_SUNLIGHT
+		tint = getDirectLightScatteringAtGround(-abs(reflect_ray));
+#endif
+
+		reflect_ray = -normalize(v_LightDirection - fNormal * dot(v_LightDirection, fNormal) * 2.0);
 
 		vec3 water_reflect_color =
-			1.5 * specular_intensity * sunTint * dayLight * fresnel_factor * max(1.0 - shadow_uncorrected, 0.0) *
+			10.0 * tint * dayLight * fresnel_factor * max(1.0 - shadow_uncorrected, 0.0) *
 			mtsmoothstep(0.85, 0.9, pow(clamp(dot(reflect_ray, viewVec), 0.0, 1.0), 32.0));
 
 		// Sun reflection
